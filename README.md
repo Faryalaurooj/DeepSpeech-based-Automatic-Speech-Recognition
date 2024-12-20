@@ -5,12 +5,15 @@ In this repo we will use DeepSpeech model to generate Automatic Speech Recogniti
 `
 mkdir Deepspeech
 `
+
 `
 cd Deepspeech
 `
+
 `
 sudo apt install git
 `
+
 `
 git clone https://github.com/mozilla/DeepSpeech.git
 `
