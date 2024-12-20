@@ -136,17 +136,21 @@ export TF_FORCE_GPU_ALLOW_GROWTH=true
 
 VERSION   : we need version 0.9 because we have checkpoints of 0.9.3 but it downloads 10 so we need to change it manually  inside version.txt files inside ./DeepSpeech/deepspeech_training/VERSION 
 
+# Custom Scorer File
+
 Now create custom scorer file , it will see what values of alpha and beta are good. It automatically adjusts the values. alpha (acoustic model=preference to asr) and beta (language model=preference to language model). In noisy data and less data, we prefer whatever model has heard it belives that so we give higher preference to alpha, command based, so we keep alpha higher
 
 `
 python3 ./DeepSpeech/lm_optimizer.py --test_files ./fulltext.csv --checkpoint_dir ./deepspeech-0.9.3-checkpoint --alphabet_config_path ./DeepSpeech/data/alphabet.txt --n_trials 1 --lm_alpha_max 0.5 --lm_beta_max 1 --use_allow_growth true 
 `
 
+
 `mkdir scorer
 `
 
 
 Now create a binary file that contains 5000 sequences of 5 words together. We kept it five words because we have call signs containing 5 words. As a result it  perfroms quantizing 
+
 
 `python3 DeepSpeech/data/lm/generate_lm.py --input_txt transcriptions_text.txt --output_dir scorer/ --top_k 5000 --kenlm_bins kenlm/build/bin --arpa_order 5 --max_arpa_memory "85%" --arpa_prune "0|0|1" --binary_a_bits 255 --binary_q_bits 8 --binary_type trie --discount_fallback  
 `
@@ -156,8 +160,8 @@ To activate locked packages  files in ubuntu
 `
 chmod +x ./native_client/generate_scorer_package `
 
-# Own scorer file
-Now we get our scorer file for our own dataset with the name of original_scorer with adjusted alpha beta parameters
+
+Now we will get our scorer file for our own dataset with the name of original_scorer with adjusted alpha beta parameters
 ./native_client/generate_scorer_package  --alphabet /DeepSpeech/data/alphabet.txt   --lm ./scorer/lm.binary   --vocab ./scorer/vocab-5000.txt   --package ./scorer/original_scorer  --default_alpha 1.04   --default_beta 0.93 --force_bytes_output_mode True   
 
 # Training
