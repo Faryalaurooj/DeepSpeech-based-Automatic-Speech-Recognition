@@ -1,0 +1,70 @@
+ python3 DeepSpeech/data/lm/generate_lm.py --input_txt transcriptions_text.txt --output_dir scorer/ --top_k 5000 --kenlm_bins kenlm/build/bin --arpa_order 5 --max_arpa_memory "85%" --arpa_prune "0|0|1" --binary_a_bits 255 --binary_q_bits 8 --binary_type trie --discount_fallback
+
+Converting to lowercase and counting word occurrences ...
+| |#                                                                                                                                                                               | 175 Elapsed Time: 0:00:00
+
+Saving top 5000 words ...
+
+Calculating word statistics ...
+  Your text file has 2246 words in total
+  It has 160 unique words
+  Your top-5000 words are 100.0000 percent of all words
+  Your most common word "three" occurred 177 times
+  The least common word in your top-k is "s" with 1 times
+  The first word with 2 occurrences is "ukay" at place 111
+
+Creating ARPA file ...
+=== 1/5 Counting and sorting n-grams ===
+Reading /home/faryal/Downloads/DeepSpeech2/scorer/lower.txt.gz
+----5---10---15---20---25---30---35---40---45---50---55---60---65---70---75---80---85---90---95--100
+****************************************************************************************************
+Unigram tokens 2246 types 163
+=== 2/5 Calculating and sorting adjusted counts ===
+Chain sizes: 1:1956 2:5563247104 3:10431089664 4:16689741824 5:24339208192
+Substituting fallback discounts for order 4: D1=0.5 D2=1 D3+=1.5
+Statistics:
+1 163 D1=0.661765 D2=1.30946 D3+=1.01471
+2 544 D1=0.676301 D2=1.08216 D3+=0.437177
+3 365/877 D1=0.797778 D2=1.13209 D3+=1.8396
+4 345/1047 D1=0.847458 D2=0.995606 D3+=1.09322
+5 297/1158 D1=0.5 D2=1 D3+=1.5
+Memory estimate for binary LM:
+type    kB
+probing 38 assuming -p 1.5
+probing 46 assuming -r models -p 1.5
+trie    17 without quantization
+trie    16 assuming -q 8 -b 8 quantization 
+trie    17 assuming -a 22 array pointer compression
+trie    16 assuming -a 22 -q 8 -b 8 array pointer compression and quantization
+=== 3/5 Calculating and sorting initial probabilities ===
+Chain sizes: 1:1956 2:8704 3:7300 4:8280 5:8316
+----5---10---15---20---25---30---35---40---45---50---55---60---65---70---75---80---85---90---95--100
+#######******************###########################################################################
+=== 4/5 Calculating and writing order-interpolated probabilities ===
+Chain sizes: 1:1956 2:8704 3:7300 4:8280 5:8316
+----5---10---15---20---25---30---35---40---45---50---55---60---65---70---75---80---85---90---95--100
+####################################################################################################
+=== 5/5 Writing ARPA model ===
+----5---10---15---20---25---30---35---40---45---50---55---60---65---70---75---80---85---90---95--100
+****************************************************************************************************
+Name:lmplz	VmPeak:55858688 kB	VmRSS:4896 kB	RSSMax:9827712 kB	user:0.432314	sys:2.42776	CPU:2.86013	real:2.85323
+
+Filtering ARPA file using vocabulary of top-k words ...
+Reading scorer/lm.arpa
+----5---10---15---20---25---30---35---40---45---50---55---60---65---70---75---80---85---90---95--100
+****************************************************************************************************
+
+Building lm.binary ...
+Reading scorer/lm_filtered.arpa
+----5---10---15---20---25---30---35---40---45---50---55---60---65---70---75---80---85---90---95--100
+****************************************************************************************************
+Identifying n-grams omitted by SRI
+----5---10---15---20---25---30---35---40---45---50---55---60---65---70---75---80---85---90---95--100
+****************************************************************************************************
+Quantizing
+----5---10---15---20---25---30---35---40---45---50---55---60---65---70---75---80---85---90---95--100
+****************************************************************************************************
+Writing trie
+----5---10---15---20---25---30---35---40---45---50---55---60---65---70---75---80---85---90---95--100
+****************************************************************************************************
+SUCCESS

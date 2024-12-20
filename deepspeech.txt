@@ -1,0 +1,157 @@
+mkdir Deepspeech 
+cd Deepspeech
+sudo apt install git
+
+git clone https://github.com/mozilla/DeepSpeech.git
+curl -LO https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.pbmm     #model download (deepspeech docx)
+curl -LO https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-models.scorer   #scorer file original download
+wget https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/deepspeech-0.9.3-checkpoint.tar.gz   #checkpoint directory
+tar -xzvf deepspeech-0.9.3-checkpoint.tar.gz                                                              #unzip checkpoint directory
+cp -r ./DeepSpeech/training/deepspeech_training ./DeepSpeech/ 
+mkdir native_client                                                                                       #now we will make our own scorer file,native client is used to download models
+cd native_client
+curl -L https://github.com/mozilla/DeepSpeech/releases/download/v0.9.3/native_client.amd64.cuda.linux.tar.xz -o native_client.amd64.cuda.linux.tar.xz && tar -Jxvf native_client.amd64.cuda.linux.tar.xz
+cd ../
+git clone https://github.com/kpu/kenlm.git   #language model download
+
+sudo apt-get install libboost-program-options-dev     #dependies of kenlm for ubuntu
+sudo apt-get install build-essential libboost-all-dev cmake zlib1g-dev libbz2-dev liblzma-dev 
+
+mkdir -p kenlm/build
+cd kenlm/build
+cmake ..
+make -j 2  #we are building kenlm model , ngram approach , cmake checks threads , if threads exist then we can perfrom parallel processing
+
+cd ../../
+
+mkdir finetuned_checkpoints
+
+conda create -n deepspeech-env python=3.7
+conda activate deepspeech-env
+pip install tensorflow-gpu==1.15.4
+conda install pandas
+pip install deepspeech==0.9.3
+pip install deepspeech-gpu
+pip install protobuf==3.20
+pip install optuna progressbar2 ds_ctcdecoder attrdict pyxdg semver resampy pyogg pandas
+
+export TF_FORCE_GPU_ALLOW_GROWTH=true  #for full gpu allocation , model takes the gpu fully
+
+
+
+
+
+# cat train.csv test.csv val.csv | awk -F, 'FNR > 1 {print $3}' | sort -u > transcriptions_text.txt
+# sed -i 's/0.10.0-alpha.3/0.9.3/' ./DeepSpeech/deepspeech_training/VERSION   #we need version 0.9 because we have checkpoints of .9 but it downloads 10 so we need to change it
+
+
+
+python3 ./DeepSpeech/lm_optimizer.py --test_files ./fulltext.csv --checkpoint_dir ./deepspeech-0.9.3-checkpoint --alphabet_config_path ./DeepSpeech/data/alphabet.txt --n_trials 1 --lm_alpha_max 0.5 --lm_beta_max 1 --use_allow_growth true  #scorer file create, it will see what values of alpha and beta are good. It automatically adjusts the values. alpha (acoustic model=preference to asr) and beta (language model=preference to language model). In noisy data and less data, we prefer whatever model has heard it belives that so we give higher preference to alpha, command based, so we keep alpha higher
+
+
+#copy alpha and beta values of trail 0 
+#lm_alpha': 1.0428834353432448, 'lm_beta': 0.9331971345827972
+
+
+mkdir scorer
+python3 DeepSpeech/data/lm/generate_lm.py --input_txt transcriptions_text.txt --output_dir scorer/ --top_k 5000 --kenlm_bins kenlm/build/bin --arpa_order 5 --max_arpa_memory "85%" --arpa_prune "0|0|1" --binary_a_bits 255 --binary_q_bits 8 --binary_type trie --discount_fallback  #it creates a binary file that contains 5000 sequences of 5 words together. We kept it five words because we have call signs containing 5 words. As a result it  perfroms quantizing 
+
+chmod +x ./native_client/generate_scorer_package  #to activatelocked packages  files in ubuntu
+
+
+./native_client/generate_scorer_package  --alphabet /DeepSpeech/data/alphabet.txt   --lm ./scorer/lm.binary   --vocab ./scorer/vocab-5000.txt   --package ./scorer/original_scorer  --default_alpha 1.04   --default_beta 0.93 --force_bytes_output_mode True   #it is our scorer file for our own dataset
+
+
+python3 DeepSpeech/DeepSpeech.py  --train_files train.csv  --dev_files val.csv  --test_files test.csv  --save_checkpoint_dir finetuned_checkpoints --alphabet_config_path DeepSpeech/data/alphabet.txt  --load_checkpoint_dir deepspeech-0.9.3-checkpoint  --reduce_lr_on_plateau true  --plateau_epochs 2 --plateau_reduction 0.05  --early_stop true  --es_epochs 10 --use_allow_growth true --load_cudnn True  #it starts training the model on scorer file and own data
+
+
+
+
+
+
+
+
+
+
+
+
+#for data preprocessing 
+echo "import csv
+import os
+import random
+import librosa  # To get audio duration
+import pandas as pd
+import argparse
+
+# Function to calculate audio duration
+def get_audio_duration(file_path):
+    try:
+        # Load the audio file using librosa
+        audio, sr = librosa.load(file_path, sr=None)
+        duration = librosa.get_duration(y=audio, sr=sr)
+        return duration
+    except Exception as e:
+        print(f\"Error loading {file_path}: {e}\")
+        return 0
+
+# Function to clean the text column
+def clean_text(text):
+    # Keep only a-z, space, and single quotation mark
+    cleaned_text = ''.join([char for char in text if char.isalpha() or char == ' ' or char == \"'\"]).lower()
+    return cleaned_text
+
+# Function to create the dataset splits
+def create_dataset_split(csv_file, train_ratio=0.7, val_ratio=0.2, test_ratio=0.1):
+    # Read the input CSV file, checking if it has a header
+    data = pd.read_csv(csv_file, header=None) if pd.read_csv(csv_file, nrows=1).shape[1] != 2 else pd.read_csv(csv_file)
+
+    # Rename columns if no header exists
+    if data.columns[0] != 'audio_path' and data.columns[1] != 'text':
+        data.columns = ['audio_path', 'text']
+
+    # Clean the 'text' column
+    data['transcript'] = data['transcript'].apply(clean_text)
+
+    # Shuffle the dataset
+    data = data.sample(frac=1, random_state=42).reset_index(drop=True)
+
+    # Calculate the split sizes
+    total_rows = len(data)
+    train_size = int(train_ratio * total_rows)
+    val_size = int(val_ratio * total_rows)
+    test_size = total_rows - train_size - val_size  # Remaining rows go to test
+
+    # Create the splits
+    train_data = data[:train_size]
+    val_data = data[train_size:train_size + val_size]
+    test_data = data[train_size + val_size:]
+
+    # Process each split and add duration column
+    for split_data in [train_data, val_data, test_data]:
+        split_data['duration'] = split_data['audio_path'].apply(get_audio_duration)
+        split_data['wav_filename'] = split_data['audio_path']
+
+    # Save the splits to CSV files
+    train_data.to_csv('train.csv', columns=['wav_filename', 'duration', 'transcript'], index=False)
+    val_data.to_csv('val.csv', columns=['wav_filename', 'duration', 'transcript'], index=False)
+    test_data.to_csv('test.csv', columns=['wav_filename', 'duration', 'transcript'], index=False)
+
+    print(\"Dataset split and saved as train.csv, val.csv, test.csv\")
+
+# Parse command-line arguments
+def parse_args():
+    parser = argparse.ArgumentParser(description=\"Dataset preprocessing for audio files.\")
+    parser.add_argument('-file', '--csv_file', required=True, help=\"Path to the CSV file to process\")
+    return parser.parse_args()
+
+# Main function to run the script
+if __name__ == '__main__':
+    args = parse_args()
+    create_dataset_split(args.csv_file)" > datapreprocessing.py
+
+
+
+python datapreprocessing.py -file cleaned_data.csv 
+
+
+
