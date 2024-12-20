@@ -138,7 +138,7 @@ VERSION   : we need version 0.9 because we have checkpoints of 0.9.3 but it down
 
 # Custom Scorer File
 
-Now create custom scorer file , it will see what values of alpha and beta are good. It automatically adjusts the values. alpha (acoustic model=preference to asr) and beta (language model=preference to language model). In noisy data and less data, we prefer whatever model has heard it belives that so we give higher preference to alpha, command based, so we keep alpha higher
+Now create custom scorer file , it will see what values of alpha and beta are good. It automatically adjusts the values. alpha (acoustic model=preference to asr) and beta (language model=preference to language model). In noisy  and less data (command based instructions) , we prefer whatever model has heard it belives, so we give higher preference to alpha, , so we keep alpha higher
 
 `
 python3 ./DeepSpeech/lm_optimizer.py --test_files ./fulltext.csv --checkpoint_dir ./deepspeech-0.9.3-checkpoint --alphabet_config_path ./DeepSpeech/data/alphabet.txt --n_trials 1 --lm_alpha_max 0.5 --lm_beta_max 1 --use_allow_growth true 
