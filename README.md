@@ -1,5 +1,5 @@
 # Deep Speech-based-Automatic-Speech-Recognition
-In this repo we will use DeepSpeech model to generate Automatic Speech Recognition transcription from Noisy Speech data  which is less in quantity and noise (02 challenges)
+In this repo we will use DeepSpeech model to generate Automatic Speech Recognition (ASR) / transcription from Noisy Speech data  which is less in quantity (02 challenges)
 
 
 ![LSTM3-chain](https://github.com/user-attachments/assets/4d00d2f1-3884-4366-b4d3-f37ee968d931)
